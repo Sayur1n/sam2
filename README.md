@@ -193,6 +193,185 @@ You can train or fine-tune SAM 2 on custom datasets of images, videos, or both. 
 
 We have released the frontend + backend code for the SAM 2 web demo (a locally deployable version similar to https://sam2.metademolab.com/demo). Please see the web demo [README](demo/README.md) for details.
 
+## OCR Functionality
+
+This project also includes OCR (Optical Character Recognition) capabilities for text extraction from images. The OCR module provides tools for processing images and extracting text content.
+
+### OCR Features
+
+- **Text Recognition**: Extract text from various image formats
+- **Image Processing**: Automatic image resizing and optimization
+- **Multi-language Support**: Support for multiple languages including Chinese and English
+- **Output Formats**: Generate structured JSON output with text and coordinates
+
+### OCR Installation
+
+Install OCR dependencies:
+
+```bash
+cd OCR
+pip install -r requirements.txt
+```
+
+### OCR Usage
+
+#### Basic OCR Processing
+
+```python
+from OCR.ocr_processor import OCRProcessor
+
+# Initialize OCR processor
+processor = OCRProcessor()
+
+# Process an image
+result = processor.process_image("path/to/image.jpg")
+
+# Get extracted text
+print(result.text)
+print(result.confidence)
+```
+
+#### Image Resizing
+
+The OCR module includes a PNG image resizing script that can automatically adjust image sizes:
+
+```bash
+# Basic usage
+python OCR/resize_png.py input.png
+
+# Specify output file
+python OCR/resize_png.py input.png -o output.png
+
+# Specify maximum file size (in MB)
+python OCR/resize_png.py input.png -s 2.0
+
+# Complete example
+python OCR/resize_png.py input.png -o output.png -s 3.5
+```
+
+For more details, see [OCR README](OCR/README.md).
+
+## Project Overview and Usage Guide
+
+This project combines SAM 2 (Segment Anything Model 2) with OCR capabilities to provide a comprehensive computer vision solution. Here's how to use the different components:
+
+### 1. Image and Video Segmentation (SAM 2)
+
+**Use Cases:**
+- Object segmentation in images and videos
+- Interactive segmentation with prompts
+- Automatic mask generation
+- Multi-object tracking in videos
+
+**Quick Start:**
+```bash
+# Install dependencies
+pip install -e .
+
+# Download model checkpoints
+cd checkpoints && ./download_ckpts.sh && cd ..
+
+# Run examples
+jupyter notebook notebooks/image_predictor_example.ipynb
+jupyter notebook notebooks/video_predictor_example.ipynb
+```
+
+### 2. OCR Text Extraction
+
+**Use Cases:**
+- Extract text from images
+- Process documents and screenshots
+- Multi-language text recognition
+- Generate structured text data
+
+**Quick Start:**
+```bash
+# Install OCR dependencies
+cd OCR && pip install -r requirements.txt && cd ..
+
+# Run OCR on an image
+python OCR/ocr_processor.py --image path/to/image.jpg
+```
+
+### 3. Web Demo Interface
+
+**Use Cases:**
+- Interactive web interface for SAM 2
+- Real-time video processing
+- User-friendly segmentation tools
+
+**Quick Start:**
+```bash
+# Start the web demo
+cd demo
+docker-compose up
+# Or follow demo/README.md for detailed setup
+```
+
+### 4. Training and Fine-tuning
+
+**Use Cases:**
+- Custom dataset training
+- Model fine-tuning for specific domains
+- Performance optimization
+
+**Quick Start:**
+```bash
+# Follow training guide
+cd training
+# See training/README.md for detailed instructions
+```
+
+### 5. Complete Workflow Example
+
+Here's a typical workflow combining multiple features:
+
+```python
+# 1. Segment objects in an image using SAM 2
+from sam2.sam2_image_predictor import SAM2ImagePredictor
+predictor = SAM2ImagePredictor.from_pretrained("facebook/sam2-hiera-large")
+masks, _, _ = predictor.predict(prompts)
+
+# 2. Extract text from the same image using OCR
+from OCR.ocr_processor import OCRProcessor
+ocr = OCRProcessor()
+text_result = ocr.process_image("image.jpg")
+
+# 3. Combine results for comprehensive analysis
+print(f"Found {len(masks)} objects and {len(text_result.text)} text elements")
+```
+
+### Project Structure
+
+```
+sam2/
+├── sam2/                    # Core SAM 2 implementation
+├── OCR/                     # OCR functionality
+├── demo/                    # Web demo interface
+├── training/                # Training and fine-tuning code
+├── notebooks/               # Example notebooks
+├── checkpoints/             # Model checkpoints
+└── tools/                   # Utility scripts
+```
+
+### System Requirements
+
+- **Python**: 3.10+
+- **PyTorch**: 2.5.1+
+- **CUDA**: 11.8+ (for GPU acceleration)
+- **Memory**: 8GB+ RAM (16GB+ recommended)
+- **Storage**: 10GB+ for models and datasets
+
+### Performance Tips
+
+1. **GPU Acceleration**: Use CUDA-compatible GPU for best performance
+2. **Model Selection**: Choose appropriate model size based on your needs:
+   - Tiny: Fast inference, lower accuracy
+   - Large: Higher accuracy, slower inference
+3. **Batch Processing**: Process multiple images/videos in batches
+4. **Memory Management**: Use `torch.inference_mode()` for inference
+5. **Image Optimization**: Use the OCR resizing script for large images
+
 ## License
 
 The SAM 2 model checkpoints, SAM 2 demo code (front-end and back-end), and SAM 2 training code are licensed under [Apache 2.0](./LICENSE), however the [Inter Font](https://github.com/rsms/inter?tab=OFL-1.1-1-ov-file) and [Noto Color Emoji](https://github.com/googlefonts/noto-emoji) used in the SAM 2 demo code are made available under the [SIL Open Font License, version 1.1](https://openfontlicense.org/open-font-license-official-text/).
