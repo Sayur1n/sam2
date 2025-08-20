@@ -20,6 +20,7 @@ import DemoSuspenseFallback from '@/demo/DemoSuspenseFallback';
 import RelayEnvironmentProvider from '@/graphql/RelayEnvironmentProvider';
 import RootLayout from '@/layouts/RootLayout';
 import SAM2DemoPage from '@/routes/DemoPageWrapper';
+import OCRPage from '@/routes/OCRPage';
 import PageNotFoundPage from '@/routes/PageNotFoundPage';
 import useSettingsContext from '@/settings/useSettingsContext';
 import {Route, Routes} from 'react-router-dom';
@@ -42,6 +43,7 @@ function DemoApp() {
       <Routes>
         <Route element={<RootLayout />}>
           <Route index={true} element={<SAM2DemoPage />} />
+          <Route path="ocr" element={<OCRPage />} />
           <Route path="*" element={<PageNotFoundPage />} />
         </Route>
       </Routes>

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>移动端坐标测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            /* 移动端优化 */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .test-area {
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            background: #f9f9f9;
+            min-height: 300px;
+            position: relative;
+            cursor: crosshair;
+        }
+
+        .coordinates-display {
+            background: #333;
+            color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 14px;
+        }
+
+        .click-point {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #ff4444;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .click-label {
+            position: absolute;
+            background: #333;
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            transform: translate(-50%, -100%);
+            margin-top: -5px;
+            pointer-events: none;
+        }
+
+        .info-panel {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .info-panel h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .info-panel ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info-panel li {
+            margin: 5px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .clear-btn {
+            background: #ff4444;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+
+        .clear-btn:hover {
+            background: #cc3333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 移动端坐标测试</h1>
+            <p>点击下方区域测试坐标处理</p>
+        </div>
+
+        <div class="info-panel">
+            <h3>📊 测试说明</h3>
+            <ul>
+                <li>✅ 支持鼠标和触摸事件</li>
+                <li>✅ 显示原始坐标和转换后坐标</li>
+                <li>✅ 实时显示点击位置</li>
+                <li>✅ 防止页面滚动和缩放</li>
+                <li>✅ 移动端优化</li>
+            </ul>
+        </div>
+
+        <div class="test-area" id="testArea">
+            <p style="text-align: center; color: #666; margin-top: 100px;">
+                点击此区域测试坐标处理<br>
+                Click or touch this area to test coordinate handling
+            </p>
+        </div>
+
+        <div class="coordinates-display" id="coordinatesDisplay">
+            <strong>坐标信息 / Coordinate Info:</strong><br>
+            <span id="eventInfo">等待点击... / Waiting for click...</span><br>
+            <span id="rawCoords">原始坐标: --</span><br>
+            <span id="convertedCoords">转换坐标: --</span><br>
+            <span id="deviceInfo">设备信息: --</span>
+        </div>
+
+        <div style="text-align: center;">
+            <button class="clear-btn" onclick="clearPoints()">清除所有点 / Clear All Points</button>
+            <button class="clear-btn" onclick="showDeviceInfo()">显示设备信息 / Show Device Info</button>
+        </div>
+    </div>
+
+    <script>
+        let clickCount = 0;
+        const testArea = document.getElementById('testArea');
+        const coordinatesDisplay = document.getElementById('coordinatesDisplay');
+
+        // 初始化设备信息
+        function showDeviceInfo() {
+            const deviceInfo = document.getElementById('deviceInfo');
+            const info = [
+                `屏幕尺寸: ${screen.width}x${screen.height}`,
+                `视口尺寸: ${window.innerWidth}x${window.innerHeight}`,
+                `设备像素比: ${window.devicePixelRatio}`,
+                `用户代理: ${navigator.userAgent.substring(0, 50)}...`,
+                `触摸支持: ${('ontouchstart' in window) ? '是' : '否'}`,
+                `触摸点: ${navigator.maxTouchPoints || '未知'}`
+            ].join('<br>');
+            deviceInfo.innerHTML = info;
+        }
+
+        // 处理点击事件
+        function handleClick(e) {
+            e.preventDefault();
+            
+            const rect = testArea.getBoundingClientRect();
+            let x, y;
+            let eventType = 'mouse';
+            
+            // 获取坐标（支持鼠标和触摸事件）
+            if (e.touches && e.touches.length > 0) {
+                eventType = 'touch';
+                x = e.touches[0].clientX - rect.left;
+                y = e.touches[0].clientY - rect.top;
+            } else {
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
+
+            // 模拟坐标转换（类似图像处理）
+            const scaleX = 1.5; // 模拟缩放
+            const scaleY = 1.5;
+            const convertedX = Math.round(x * scaleX);
+            const convertedY = Math.round(y * scaleY);
+
+            // 更新显示
+            document.getElementById('eventInfo').textContent = 
+                `${eventType}事件 - 点击 ${++clickCount} / ${eventType} event - click ${clickCount}`;
+            document.getElementById('rawCoords').textContent = 
+                `原始坐标: [${Math.round(x)}, ${Math.round(y)}] / Raw: [${Math.round(x)}, ${Math.round(y)}]`;
+            document.getElementById('convertedCoords').textContent = 
+                `转换坐标: [${convertedX}, ${convertedY}] / Converted: [${convertedX}, ${convertedY}]`;
+
+            // 创建点击点标记
+            createClickPoint(x, y, clickCount);
+
+            // 控制台输出
+            console.log(`📍 ${eventType}事件 - 点击 ${clickCount}`);
+            console.log(`   原始坐标: [${Math.round(x)}, ${Math.round(y)}]`);
+            console.log(`   转换坐标: [${convertedX}, ${convertedY}]`);
+            console.log(`   缩放比例: scaleX=${scaleX}, scaleY=${scaleY}`);
+        }
+
+        // 创建点击点标记
+        function createClickPoint(x, y, count) {
+            const point = document.createElement('div');
+            point.className = 'click-point';
+            point.style.left = x + 'px';
+            point.style.top = y + 'px';
+
+            const label = document.createElement('div');
+            label.className = 'click-label';
+            label.textContent = count;
+            label.style.left = x + 'px';
+            label.style.top = y + 'px';
+
+            testArea.appendChild(point);
+            testArea.appendChild(label);
+        }
+
+        // 清除所有点
+        function clearPoints() {
+            const points = testArea.querySelectorAll('.click-point, .click-label');
+            points.forEach(point => point.remove());
+            clickCount = 0;
+            document.getElementById('eventInfo').textContent = '等待点击... / Waiting for click...';
+            document.getElementById('rawCoords').textContent = '原始坐标: --';
+            document.getElementById('convertedCoords').textContent = '转换坐标: --';
+        }
+
+        // 添加事件监听器
+        testArea.addEventListener('click', handleClick);
+        testArea.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            handleClick(e);
+        }, { passive: false });
+
+        // 防止触摸时的默认行为
+        testArea.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+
+        testArea.addEventListener('touchend', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+
+        // 初始化显示设备信息
+        showDeviceInfo();
+    </script>
+</body>
+</html> 

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import LoadingStateScreen from '@/common/loading/LoadingStateScreen';
+import { Navigation } from '@/common/components/navigation/Navigation';
 import useSettingsContext from '@/settings/useSettingsContext';
 import {Cog6ToothIcon} from '@heroicons/react/24/outline';
 import stylex from '@stylexjs/stylex';
@@ -56,6 +57,7 @@ export default function RootLayout() {
 
   return (
     <div {...stylex.props(styles.container)}>
+      <Navigation />
       <div {...stylex.props(styles.content)}>
         <Suspense
           fallback={

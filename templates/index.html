@@ -1,0 +1,2389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SAM2 图像分割工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            /* 移动端优化 */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .upload-section {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px;
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            background: #f9f9f9;
+        }
+
+        .upload-section.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .image-container {
+            position: relative;
+            display: inline-block;
+            margin: 20px 0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .image-canvas {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            cursor: crosshair;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 5px;
+        }
+        
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .control-btn:active {
+            transform: translateY(0);
+        }
+        
+        .control-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .control-btn.active {
+            transform: scale(1.05);
+        }
+
+        .foreground-btn {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+        }
+
+        .background-btn {
+            background: linear-gradient(135deg, #f44336 0%, #da190b 100%);
+            color: white;
+        }
+
+        .segment-btn {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+            font-weight: bold;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+            color: white;
+        }
+
+        .clear-btn {
+            background: linear-gradient(135deg, #9E9E9E 0%, #757575 100%);
+            color: white;
+        }
+
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        .status.loading {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .status.success {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .results {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .result-item {
+            text-align: center;
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .result-item img {
+            max-width: 300px;
+            height: auto;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .result-images {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        .result-image-container {
+            text-align: center;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .result-image-container h5 {
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .result-image-container img {
+            max-width: 400px;
+            height: auto;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        .download-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        
+        .ocr-section, .translation-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+            text-align: center;
+        }
+        
+        .ocr-controls, .translation-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .language-select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            background: white;
+            min-width: 120px;
+        }
+        
+        .translation-result {
+            margin-top: 15px;
+            text-align: left;
+        }
+        
+        .translation-content {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .ocr-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+
+        .ocr-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .image-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .points-info {
+            background: #f0f4ff;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .point {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin: 0 5px;
+        }
+
+        .point.foreground {
+            background: #4CAF50;
+        }
+
+        .point.background {
+            background: #f44336;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .result-image-container {
+            text-align: center;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-top: 15px;
+        }
+
+        .results-content {
+            display: block;
+        }
+
+        .results-content.hidden {
+            display: none;
+        }
+
+        .result-header:hover {
+            background: #e0e0e0 !important;
+        }
+
+        .result-header h4 {
+            user-select: none;
+        }
+
+        .visualization-result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .visualization-result h3 {
+            margin: 0 0 15px 0;
+            color: #495057;
+            font-size: 18px;
+        }
+        
+        .visualization-content {
+            text-align: center;
+        }
+        
+        .visualization-content img {
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            max-width: 100%;
+            height: auto;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .results {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 SAM2 图像分割工具</h1>
+            <p>上传图片，点击添加前景/背景点，然后进行智能分割</p>
+        </div>
+
+        <div class="main-content">
+            <!-- 上传区域 -->
+            <div class="upload-section" id="uploadSection">
+                <h3>📁 上传图片</h3>
+                <p>拖拽图片到此处或点击选择文件</p>
+                <input type="file" id="fileInput" class="file-input" accept="image/*">
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    选择图片
+                </button>
+            </div>
+
+            <!-- 图片显示和交互区域 -->
+            <div id="imageSection" class="hidden">
+                <div class="image-container">
+                    <canvas id="imageCanvas" class="image-canvas"></canvas>
+                </div>
+
+                <!-- 控制按钮 -->
+                <div class="controls">
+                    <button class="control-btn foreground-btn" id="foregroundBtn" onclick="setMode('foreground')">
+                        🎯 选择前景
+                    </button>
+                    <button class="control-btn background-btn" id="backgroundBtn" onclick="setMode('background')">
+                        ❌ 删除背景
+                    </button>
+                    <button class="control-btn segment-btn" id="segmentBtn" onclick="segmentImage()">
+                        🚀 开始分割
+                    </button>
+                    <button class="control-btn clear-btn" onclick="clearPoints()">
+                        🗑️ 清除所有点
+                    </button>
+                    <button class="control-btn" onclick="restoreOriginalImage()" style="background: linear-gradient(135deg, #9C27B0 0%, #673AB7 100%); color: white;">
+                        🔄 恢复原图
+                    </button>
+                </div>
+
+                <!-- 状态显示 -->
+                <div id="status" class="status hidden"></div>
+
+                <!-- 点信息显示 -->
+                <div id="pointsInfo" class="points-info hidden">
+                    <h4>已添加的点：</h4>
+                    <div id="pointsDisplay"></div>
+                </div>
+            </div>
+
+            <!-- 结果显示 -->
+            <div id="resultsSection" class="results hidden">
+                <div class="result-item">
+                    <div class="result-header" onclick="toggleResults()" style="cursor: pointer; padding: 15px; background: #f5f5f5; border-radius: 5px; margin-bottom: 10px; width: 100%; box-sizing: border-box;">
+                        <h4 style="margin: 0; display: flex; justify-content: space-between; align-items: center;">
+                            <span>分割结果</span>
+                            <span id="toggleIcon">▼</span>
+                        </h4>
+                    </div>
+                    <div id="resultsContent" class="results-content">
+                        <p>置信度: <span id="scoreDisplay">0.00</span></p>
+                        <div class="result-images">
+                            <div class="result-image-container">
+                                <h5>1. 仅mask部分的原始图像（透明背景）</h5>
+                                <img id="maskedResultImage" alt="分割结果" style="max-width: 400px; height: auto; border: 2px solid #ddd; border-radius: 8px;">
+                            </div>
+                            <div class="result-image-container">
+                                <h5>2. Mask图像（与原始图像等大小）</h5>
+                                <img id="maskImage" alt="掩码图像" style="max-width: 400px; height: auto; border: 2px solid #ddd; border-radius: 8px;">
+                            </div>
+                            <div class="result-image-container">
+                                <h5>3. Mask反转图像（与原始图像等大小）</h5>
+                                <img id="invertedMaskImage" alt="掩码反转图像" style="max-width: 400px; height: auto; border: 2px solid #ddd; border-radius: 8px;">
+                            </div>
+                        </div>
+                        <div class="download-buttons">
+                            <button class="control-btn download-btn" onclick="downloadMaskedImage()">
+                                💾 下载分割图像
+                            </button>
+                            <button class="control-btn" onclick="downloadMask()" style="background: linear-gradient(135deg, #607D8B 0%, #455A64 100%); color: white;">
+                                🎭 下载掩码
+                            </button>
+                            <button class="control-btn" onclick="downloadInvertedMask()" style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); color: white;">
+                                🔄 下载反转掩码
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- OCR功能 -->
+                    <div class="ocr-section">
+                        <h4>OCR文字识别与翻译</h4>
+                        <div class="ocr-controls">
+                            <select id="ocrMode" class="language-select">
+                                <option value="full">全图OCR翻译</option>
+                                <option value="mask">非商品部分翻译并替换</option>
+                                <!-- <option value="replace">商品部分翻译，非商品部分替换</option> -->
+                            </select>
+                            <select id="sourceLanguage" class="language-select">
+                                <option value="">默认（中日英）</option>
+                                <option value="Korean">韩文</option>
+                                <option value="Russian">俄文</option>
+                                <option value="Japanese">日文</option>
+                                <option value="English">英文</option>
+                                <option value="Chinese">中文</option>
+                            </select>
+                            <select id="targetLanguage" class="language-select">
+                                <option value="Chinese">中文</option>
+                                <option value="English">英文</option>
+                                <option value="Japanese">日文</option>
+                                <option value="Korean">韩文</option>
+                                <option value="French">法文</option>
+                                <option value="German">德文</option>
+                                <option value="Spanish">西班牙文</option>
+                                <option value="Russian">俄文</option>
+                            </select>
+                            <button class="control-btn ocr-btn" onclick="performOCR()" style="background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%); color: white;">
+                                🔍 OCR识别翻译
+                            </button>
+                        </div>
+                        <div id="ocrResult" class="translation-result hidden">
+                            <h5>OCR翻译结果：</h5>
+                            <div id="ocrContent" class="translation-content"></div>
+                        </div>
+                        <div id="visualizationResult" class="visualization-result hidden">
+                            <h5>可视化结果：</h5>
+                            <div class="visualization-content">
+                                <img id="visualizationImage" alt="OCR可视化结果" style="max-width: 100%; height: auto;">
+                            </div>
+                        </div>
+                        <div id="replacedImageContainer" class="result-image-container hidden">
+                            <h5>文字替换结果：</h5>
+                            <div style="display: flex; gap: 20px; align-items: flex-start;">
+                                <!-- 可编辑的画布区域 -->
+                                <div style="flex: 2;">
+                                    <canvas id="editableCanvas" style="border: 2px solid #ddd; border-radius: 8px; max-width: 400px; height: auto; cursor: crosshair; display: none; object-fit: contain;"></canvas>
+                                    <img id="replacedImage" style="max-width: 400px; height: auto;" />
+                                </div>
+                                
+                                <!-- 文字图层控制面板 -->
+                                <div style="flex: 1; min-width: 250px;">
+                                    <div style="margin-bottom: 10px;">
+                                        <button class="control-btn" onclick="enableTextEditing()" style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); color: white; margin-right: 5px;">
+                                            ✏️ 编辑文字
+                                        </button>
+                                        <button class="control-btn" onclick="generateFinalResult()" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white;">
+                                            🎨 生成最终结果
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="textLayersPanel" style="max-height: 400px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 8px; display: none;">
+                                        <h6 style="margin: 0 0 10px 0;">文字图层</h6>
+                                        <div id="layersContent">
+                                            <p style="color: #666; text-align: center;">暂无文字图层</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 最终结果 -->
+                            <div id="finalResultContainer" style="display: none; text-align: center; margin-top: 20px;">
+                                <h5>🎉 最终结果</h5>
+                                <img id="finalResultImage" style="max-width: 600px; width: 100%; height: auto; border: 2px solid #ddd; border-radius: 8px;" />
+                                <div style="margin-top: 15px;">
+                                    <button class="control-btn" onclick="downloadFinalResult()" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%); color: white;">
+                                        💾 下载图片
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+
+                    
+                    <!-- 翻译功能 -->
+                    <div class="translation-section">
+                        <h4>图像翻译功能</h4>
+                        <div class="translation-controls">
+                            <select id="targetLanguageOld" class="language-select">
+                                <option value="Chinese">中文</option>
+                                <option value="English">英文</option>
+                                <option value="Japanese">日文</option>
+                                <option value="Korean">韩文</option>
+                                <option value="French">法文</option>
+                                <option value="German">德文</option>
+                                <option value="Spanish">西班牙文</option>
+                                <option value="Russian">俄文</option>
+                            </select>
+                            <button class="control-btn translate-btn" onclick="translateImage()" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white;">
+                                🌐 翻译文字
+                            </button>
+                        </div>
+                        <div id="translationResult" class="translation-result hidden">
+                            <h5>翻译结果：</h5>
+                            <div id="translationContent" class="translation-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentImage = null;
+        let currentMode = 'foreground'; // 'foreground' 或 'background'
+        let points = [];
+        let labels = [];
+        let maskData = null;
+        let originalImageData = null;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            setupFileUpload();
+            setupCanvas();
+        });
+
+        // 设置文件上传
+        function setupFileUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const uploadSection = document.getElementById('uploadSection');
+
+            fileInput.addEventListener('change', handleFileSelect);
+
+            // 拖拽上传
+            uploadSection.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadSection.classList.add('dragover');
+            });
+
+            uploadSection.addEventListener('dragleave', () => {
+                uploadSection.classList.remove('dragover');
+            });
+
+            uploadSection.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadSection.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFile(files[0]);
+                }
+            });
+        }
+
+        // 处理文件选择
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        // 处理文件
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showStatus('请选择图片文件', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                loadImage(e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 加载图片
+        function loadImage(src) {
+            const img = new Image();
+            img.onload = function() {
+                currentImage = img;
+                originalImageData = src;
+                displayImage(img);
+                showImageSection();
+                clearPoints();
+                showStatus('图片加载成功！点击"选择前景"或"删除背景"按钮，然后在图片上点击添加点', 'success');
+            };
+            img.src = src;
+        }
+
+        // 显示图片
+        function displayImage(img) {
+            const canvas = document.getElementById('imageCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // 设置画布大小
+            const maxWidth = 800;
+            const maxHeight = 600;
+            let { width, height } = img;
+
+            if (width > maxWidth || height > maxHeight) {
+                const ratio = Math.min(maxWidth / width, maxHeight / height);
+                width *= ratio;
+                height *= ratio;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            // 绘制图片
+            ctx.drawImage(img, 0, 0, width, height);
+            drawPoints();
+        }
+
+        // 设置画布点击事件（支持鼠标和触摸）
+        function setupCanvas() {
+            const canvas = document.getElementById('imageCanvas');
+            
+            // 鼠标事件
+            canvas.addEventListener('click', handleCanvasClick);
+            
+            // 触摸事件（防止默认行为，避免页面滚动）
+            canvas.addEventListener('touchstart', function(e) {
+                e.preventDefault(); // 防止页面滚动
+                handleCanvasClick(e);
+            }, { passive: false });
+            
+            // 防止触摸时的默认行为
+            canvas.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+            }, { passive: false });
+            
+            canvas.addEventListener('touchend', function(e) {
+                e.preventDefault();
+            }, { passive: false });
+        }
+
+        // 处理画布点击（支持鼠标和触摸）
+        function handleCanvasClick(e) {
+            if (!currentImage) return;
+
+            const canvas = document.getElementById('imageCanvas');
+            const rect = canvas.getBoundingClientRect();
+            
+            // 获取坐标（支持鼠标和触摸事件）
+            let x, y;
+            let eventType = 'mouse';
+            if (e.touches && e.touches.length > 0) {
+                // 触摸事件
+                eventType = 'touch';
+                x = e.touches[0].clientX - rect.left;
+                y = e.touches[0].clientY - rect.top;
+            } else {
+                // 鼠标事件
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
+
+            // 转换坐标到原图比例
+            const scaleX = currentImage.width / canvas.width;
+            const scaleY = currentImage.height / canvas.height;
+            const originalX = Math.round(x * scaleX);
+            const originalY = Math.round(y * scaleY);
+
+            // 调试信息（在移动端显示坐标信息）
+            console.log(`📍 ${eventType}事件 - 显示坐标: [${Math.round(x)}, ${Math.round(y)}] -> 原始坐标: [${originalX}, ${originalY}]`);
+            console.log(`📏 缩放比例: scaleX=${scaleX.toFixed(3)}, scaleY=${scaleY.toFixed(3)}`);
+            console.log(`🖼️ 画布尺寸: ${canvas.width}x${canvas.height}, 图像尺寸: ${currentImage.width}x${currentImage.height}`);
+
+            addPoint(originalX, originalY);
+        }
+
+        // 添加点
+        function addPoint(x, y) {
+            const label = currentMode === 'foreground' ? 1 : 0;
+            points.push([x, y]);
+            labels.push(label);
+
+            drawPoints();
+            updatePointsDisplay();
+            showPointsInfo();
+        }
+
+        // 绘制点
+        function drawPoints() {
+            if (!currentImage) return;
+
+            const canvas = document.getElementById('imageCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // 重新绘制图片
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
+
+            // 绘制点
+            const scaleX = canvas.width / currentImage.width;
+            const scaleY = canvas.height / currentImage.height;
+
+            points.forEach((point, index) => {
+                const x = point[0] * scaleX;
+                const y = point[1] * scaleY;
+                const label = labels[index];
+
+                ctx.beginPath();
+                ctx.arc(x, y, 8, 0, 2 * Math.PI);
+                ctx.fillStyle = label === 1 ? '#4CAF50' : '#f44336';
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // 添加标签
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(label === 1 ? 'F' : 'B', x, y + 4);
+            });
+        }
+
+        // 设置模式
+        function setMode(mode) {
+            currentMode = mode;
+            
+            // 更新按钮状态
+            document.getElementById('foregroundBtn').classList.toggle('active', mode === 'foreground');
+            document.getElementById('backgroundBtn').classList.toggle('active', mode === 'background');
+            
+            // 更新光标样式
+            const canvas = document.getElementById('imageCanvas');
+            if (mode === 'foreground') {
+                canvas.style.cursor = 'crosshair';
+            } else {
+                canvas.style.cursor = 'crosshair';
+            }
+        }
+
+        // 清除所有点
+        function clearPoints() {
+            points = [];
+            labels = [];
+            drawPoints();
+            hidePointsInfo();
+            hideResults();
+        }
+
+        // 恢复原图
+        function restoreOriginalImage() {
+            if (currentImage) {
+                displayImage(currentImage);
+                hideResults();
+                showStatus('已恢复原图', 'success');
+            }
+        }
+
+        // 显示图片区域
+        function showImageSection() {
+            document.getElementById('imageSection').classList.remove('hidden');
+        }
+
+        // 显示点信息
+        function showPointsInfo() {
+            document.getElementById('pointsInfo').classList.remove('hidden');
+        }
+
+        // 隐藏点信息
+        function hidePointsInfo() {
+            document.getElementById('pointsInfo').classList.add('hidden');
+        }
+
+        // 更新点显示
+        function updatePointsDisplay() {
+            const display = document.getElementById('pointsDisplay');
+            display.innerHTML = '';
+
+            points.forEach((point, index) => {
+                const label = labels[index];
+                const pointDiv = document.createElement('span');
+                pointDiv.className = `point ${label === 1 ? 'foreground' : 'background'}`;
+                pointDiv.title = `点 ${index + 1}: (${point[0]}, ${point[1]}) - ${label === 1 ? '前景' : '背景'}`;
+                display.appendChild(pointDiv);
+            });
+        }
+
+        // 显示状态
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            
+            if (type === 'loading') {
+                status.innerHTML = `<div class="loading-spinner"></div>${message}`;
+            } else {
+                status.textContent = message;
+            }
+            
+            status.className = `status ${type}`;
+            status.classList.remove('hidden');
+        }
+
+        // 隐藏状态
+        function hideStatus() {
+            document.getElementById('status').classList.add('hidden');
+        }
+
+        // 隐藏结果
+        function hideResults() {
+            document.getElementById('resultsSection').classList.add('hidden');
+        }
+
+        // 分割图片
+        async function segmentImage() {
+            if (points.length === 0) {
+                showStatus('请先添加一些点', 'error');
+                return;
+            }
+
+            showStatus('正在处理图片，请稍候...', 'loading');
+
+            try {
+                const response = await fetch('/api/segment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image: originalImageData,
+                        points: points,
+                        labels: labels
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    maskData = data.mask_data;
+                    displayResult(data.blended, data.masked_result, data.mask, data.inverted_mask, data.score);
+                    showStatus('分割完成！', 'success');
+                } else {
+                    showStatus(`分割失败: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`网络错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 显示结果
+        function displayResult(blendedImageData, maskedResultData, maskData, invertedMaskData, score) {
+            const canvas = document.getElementById('imageCanvas');
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            const maskedResultImage = document.getElementById('maskedResultImage');
+            const maskImage = document.getElementById('maskImage');
+            const invertedMaskImage = document.getElementById('invertedMaskImage');
+            
+            // 更新画布显示分割结果
+            const resultImg = new Image();
+            resultImg.onload = function() {
+                const ctx = canvas.getContext('2d');
+                
+                // 清空画布
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // 绘制分割结果
+                ctx.drawImage(resultImg, 0, 0, canvas.width, canvas.height);
+            };
+            resultImg.src = `data:image/png;base64,${blendedImageData}`;
+            
+            // 显示掩码部分的原图（透明背景）
+            maskedResultImage.src = `data:image/png;base64,${maskedResultData}`;
+            
+            // 显示掩码图像
+            maskImage.src = `data:image/png;base64,${maskData}`;
+            
+            // 显示掩码反转图像
+            invertedMaskImage.src = `data:image/png;base64,${invertedMaskData}`;
+            
+            scoreDisplay.textContent = score.toFixed(3);
+            
+            // 显示结果区域但默认折叠
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsContent = document.getElementById('resultsContent');
+            const toggleIcon = document.getElementById('toggleIcon');
+            
+            resultsSection.classList.remove('hidden');
+            resultsContent.style.display = 'none';  // 默认折叠
+            toggleIcon.textContent = '▼';  // 显示展开图标
+            
+            // 保存当前掩码结果图像用于翻译
+            window.currentMaskedResultData = maskedResultData;
+        }
+
+        // OCR识别并翻译
+        async function performOCR() {
+            if (!originalImageData) {
+                showStatus('没有可处理的图像', 'error');
+                return;
+            }
+
+            const ocrMode = document.getElementById('ocrMode').value;
+            const targetLanguage = document.getElementById('targetLanguage').value;
+            const sourceLanguage = document.getElementById('sourceLanguage').value;
+            const ocrResult = document.getElementById('ocrResult');
+            const ocrContent = document.getElementById('ocrContent');
+            const replacedImageContainer = document.getElementById('replacedImageContainer');
+            const replacedImage = document.getElementById('replacedImage');
+            const visualizationResult = document.getElementById('visualizationResult');
+            const visualizationImage = document.getElementById('visualizationImage');
+
+            try {
+                showStatus('正在进行OCR识别...', 'loading');
+                
+                let requestData = {
+                    image_base64: originalImageData,
+                    target_language: targetLanguage,
+                    source_language: sourceLanguage  // 添加原语言参数
+                };
+
+                let endpoint = '/api/ocr_translate';
+                
+                if (ocrMode === 'mask') {
+                    if (!maskData) {
+                        showStatus('请先进行图像分割', 'error');
+                        return;
+                    }
+                    requestData.mask_data = maskData;
+                    requestData.ocr_mode = 'mask';
+                } else if (ocrMode === 'replace') {
+                    if (!maskData) {
+                        showStatus('请先进行图像分割', 'error');
+                        return;
+                    }
+                    requestData.mask_data = maskData;
+                    endpoint = '/api/ocr_replace';
+                } else {
+                    requestData.ocr_mode = 'full';
+                }
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    ocrContent.innerHTML = data.translation.replace(/\n/g, '<br>');
+                    ocrResult.classList.remove('hidden');
+                    
+                    if ((ocrMode === 'replace' || ocrMode === 'mask') && data.replaced_image) {
+                        replacedImage.src = 'data:image/jpeg;base64,' + data.replaced_image;
+                        replacedImageContainer.classList.remove('hidden');
+                        
+                        // 保存文字图层信息用于编辑
+                        console.log('OCR响应数据:', data);
+                        console.log('data.text_layers:', data.text_layers);
+                        console.log('data.processed_image:', data.processed_image ? '存在' : '不存在');
+                        
+                        if (data.text_layers && Array.isArray(data.text_layers) && data.text_layers.length > 0) {
+                            window.textLayers = data.text_layers;
+                            window.processedImage = 'data:image/jpeg;base64,' + data.processed_image;
+                            console.log('文字图层已保存，数量:', window.textLayers.length);
+                            console.log('文字图层详情:', window.textLayers);
+                            
+                            // 添加详细的调试信息
+                            window.textLayers.forEach((layer, index) => {
+                                console.log(`图层 ${index}:`, {
+                                    id: layer.id,
+                                    original_text: layer.original_text,
+                                    translated_text: layer.translated_text,
+                                    text_color: layer.text_color,
+                                    font_size: layer.font_size,
+                                    font_family: layer.font_family,
+                                    spacing: layer.spacing,
+                                    is_in_product: layer.is_in_product
+                                });
+                            });
+                        } else {
+                            console.log('没有收到有效的文字图层数据');
+                            window.textLayers = null;
+                            window.processedImage = null;
+                        }
+                    } else {
+                        replacedImageContainer.classList.add('hidden');
+                    }
+
+                    if (data.visualization) {
+                        if (visualizationImage) {
+                            visualizationImage.src = 'data:image/jpeg;base64,' + data.visualization;
+                            visualizationResult.classList.remove('hidden');
+                        }
+                    } else {
+                        visualizationResult.classList.add('hidden');
+                    }
+                    
+                    showStatus('OCR识别翻译完成！', 'success');
+                } else {
+                    showStatus(`OCR识别失败: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('OCR错误:', error);
+                showStatus(`OCR错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 翻译图像中的文字
+        async function translateImage() {
+            if (!window.currentMaskedResultData) {
+                showStatus('没有可翻译的图像', 'error');
+                return;
+            }
+
+            const targetLanguage = document.getElementById('targetLanguageOld').value;
+            const translationResult = document.getElementById('translationResult');
+            const translationContent = document.getElementById('translationContent');
+
+            try {
+                showStatus('正在翻译...', 'loading');
+                
+                const response = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image_base64: window.currentMaskedResultData,
+                        target_language: targetLanguage
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // 更新翻译文本
+                    translationContent.textContent = data.translation;
+                    translationResult.classList.remove('hidden');
+                    
+                    // 如果有替换后的图像，也更新图像结果
+                    if (data.replaced_image) {
+                        const replacedImage = document.getElementById('replacedImage');
+                        const replacedImageContainer = document.getElementById('replacedImageContainer');
+                        
+                        replacedImage.src = 'data:image/jpeg;base64,' + data.replaced_image;
+                        replacedImageContainer.classList.remove('hidden');
+                        
+                        // 保存文字图层信息用于编辑
+                        if (data.text_layers && Array.isArray(data.text_layers) && data.text_layers.length > 0) {
+                            window.textLayers = data.text_layers;
+                            window.processedImage = 'data:image/jpeg;base64,' + data.processed_image;
+                            console.log('翻译后文字图层已保存，数量:', window.textLayers.length);
+                        }
+                    }
+                    
+                    showStatus('翻译完成！', 'success');
+                } else {
+                    showStatus(`翻译失败: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('翻译错误:', error);
+                showStatus(`翻译错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 下载分割图像（透明背景）
+        async function downloadMaskedImage() {
+            if (!maskData || !originalImageData) {
+                showStatus('没有可下载的结果', 'error');
+                return;
+            }
+
+            try {
+                showStatus('正在准备下载...', 'loading');
+                
+                console.log('发送下载请求...');
+                const response = await fetch('/api/download_masked_image', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        mask_data: maskData,
+                        image: originalImageData
+                    })
+                });
+
+                console.log('响应状态:', response.status);
+                console.log('响应头:', response.headers);
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    console.log('Blob 大小:', blob.size);
+                    
+                    if (blob.size === 0) {
+                        showStatus('下载失败: 文件为空', 'error');
+                        return;
+                    }
+                    
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'masked_image.png';
+                    a.style.display = 'none';
+                    
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                    }, 100);
+                    
+                    showStatus('下载完成！', 'success');
+                } else {
+                    let errorMessage = '下载失败';
+                    try {
+                        const errorText = await response.text();
+                        console.log('错误响应:', errorText);
+                        const data = JSON.parse(errorText);
+                        errorMessage = data.error || errorMessage;
+                    } catch {
+                        errorMessage = '下载失败: 服务器错误';
+                    }
+                    showStatus(errorMessage, 'error');
+                }
+            } catch (error) {
+                console.error('下载错误:', error);
+                showStatus(`下载错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 下载掩码
+        async function downloadMask() {
+            if (!maskData) {
+                showStatus('没有可下载的掩码', 'error');
+                return;
+            }
+
+            try {
+                showStatus('正在准备下载掩码...', 'loading');
+                
+                const response = await fetch('/api/download_mask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        mask_data: maskData
+                    })
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    
+                    if (blob.size === 0) {
+                        showStatus('下载失败: 掩码文件为空', 'error');
+                        return;
+                    }
+                    
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'mask.png';
+                    a.style.display = 'none';
+                    
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                    }, 100);
+                    
+                    showStatus('掩码下载完成！', 'success');
+                } else {
+                    let errorMessage = '掩码下载失败';
+                    try {
+                        const errorText = await response.text();
+                        const data = JSON.parse(errorText);
+                        errorMessage = data.error || errorMessage;
+                    } catch {
+                        errorMessage = '掩码下载失败: 服务器错误';
+                    }
+                    showStatus(errorMessage, 'error');
+                }
+            } catch (error) {
+                console.error('掩码下载错误:', error);
+                showStatus(`掩码下载错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 下载反转掩码
+        async function downloadInvertedMask() {
+            if (!maskData) {
+                showStatus('没有可下载的反转掩码', 'error');
+                return;
+            }
+
+            try {
+                showStatus('正在准备下载反转掩码...', 'loading');
+                
+                const response = await fetch('/api/download_inverted_mask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        mask_data: maskData
+                    })
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    
+                    if (blob.size === 0) {
+                        showStatus('下载失败: 反转掩码文件为空', 'error');
+                        return;
+                    }
+                    
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'inverted_mask.png';
+                    a.style.display = 'none';
+                    
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                    }, 100);
+                    
+                    showStatus('反转掩码下载完成！', 'success');
+                } else {
+                    let errorMessage = '反转掩码下载失败';
+                    try {
+                        const errorText = await response.text();
+                        const data = JSON.parse(errorText);
+                        errorMessage = data.error || errorMessage;
+                    } catch {
+                        errorMessage = '反转掩码下载失败: 服务器错误';
+                    }
+                    showStatus(errorMessage, 'error');
+                }
+            } catch (error) {
+                console.error('反转掩码下载错误:', error);
+                showStatus(`反转掩码下载错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 切换结果显示的折叠/展开
+        function toggleResults() {
+            const resultsContent = document.getElementById('resultsContent');
+            const toggleIcon = document.getElementById('toggleIcon');
+
+            if (resultsContent.style.display === 'none') {
+                resultsContent.style.display = 'block';
+                toggleIcon.textContent = '▲';
+            } else {
+                resultsContent.style.display = 'none';
+                toggleIcon.textContent = '▼';
+            }
+        }
+
+        // ========== 文字图层编辑功能 ==========
+        
+        // 全局变量
+        let textLayers = [];
+        let processedImage = null;
+        let textEditorCanvas = null;
+        let textEditorCtx = null;
+        let selectedLayer = null;
+        let isDragging = false;
+        let dragStart = null;
+
+
+
+        // ========== 文字替换结果交互式编辑功能 ==========
+        
+        // 全局变量
+        let editableCanvas = null;
+        let editableCtx = null;
+        let isResizing = false;     // 新增：是否正在缩放
+        let resizeHandle = null;    // 新增：当前拖拽的缩放控制点
+
+        // 启用文字编辑
+        function enableTextEditing() {
+            // 检查是否已经在编辑状态
+            const editableCanvas = document.getElementById('editableCanvas');
+            const replacedImage = document.getElementById('replacedImage');
+            
+            if (editableCanvas.style.display === 'block' && replacedImage.style.display === 'none') {
+                console.log('已经在编辑状态，忽略重复点击');
+                return;
+            }
+            
+            console.log('启用文字编辑，检查数据:');
+            console.log('window.textLayers:', window.textLayers);
+            console.log('window.processedImage:', window.processedImage ? '存在' : '不存在');
+            
+            if (!window.textLayers || !window.processedImage) {
+                showStatus('没有可编辑的文字图层', 'error');
+                return;
+            }
+
+            /* 👉 在隐藏原图之前就把显示尺寸记录下来 */
+            const originalImg = document.getElementById('replacedImage');
+            const displayWidth = originalImg.offsetWidth || originalImg.naturalWidth;
+            const displayHeight = originalImg.offsetHeight || originalImg.naturalHeight;
+
+            // 初始化画布，传入刚拿到的尺寸
+            initEditableCanvas(displayWidth, displayHeight);
+
+            // 再把原图隐藏
+            originalImg.style.display = 'none';
+            document.getElementById('editableCanvas').style.display = 'block';
+            document.getElementById('textLayersPanel').style.display = 'block';
+
+            // 更新图层面板
+            updateLayersPanel();
+            
+            showStatus('文字编辑已启用，可以拖拽调整位置', 'success');
+        }
+
+        // 初始化可编辑画布
+        function initEditableCanvas(displayWidth, displayHeight) {
+            editableCanvas = document.getElementById('editableCanvas');
+            editableCtx = editableCanvas.getContext('2d');
+
+            /* 👉 这里直接用 enableTextEditing 传进来的尺寸 */
+            editableCanvas.width = displayWidth;
+            editableCanvas.height = displayHeight;
+            editableCanvas.style.width = displayWidth + 'px';
+            editableCanvas.style.height = displayHeight + 'px';
+            
+            // 设置Canvas的像素密度，提高字体清晰度
+            const devicePixelRatio = window.devicePixelRatio || 1;
+            const rect = editableCanvas.getBoundingClientRect();
+            
+            // 设置Canvas的实际尺寸为显示尺寸的2倍，提高清晰度
+            editableCanvas.width = displayWidth * 2;
+            editableCanvas.height = displayHeight * 2;
+            editableCanvas.style.width = displayWidth + 'px';
+            editableCanvas.style.height = displayHeight + 'px';
+            
+            // 缩放上下文以匹配显示尺寸
+            editableCtx.scale(2, 2);
+
+            const bgImg = new Image();
+            bgImg.onload = () => {
+                console.log('  初始化背景图片加载完成，尺寸:', bgImg.width, 'x', bgImg.height);
+                editableCtx.drawImage(bgImg, 0, 0, displayWidth, displayHeight);
+                drawTextLayersOnCanvas();       // 文字这时就能正确画出来
+                addEditableCanvasEventListeners();
+            };
+            bgImg.onerror = () => {
+                console.error('❌ 初始化背景图片加载失败');
+            };
+            const imageSrc = window.processedImage || document.getElementById('replacedImage').src;
+            console.log('  初始化使用图片源:', imageSrc ? '存在' : '不存在');
+            bgImg.src = imageSrc;
+        }
+
+        // 在画布上绘制文字图层
+        function drawTextLayersOnCanvas() {
+            if (!editableCtx || !window.textLayers) return;
+            
+            // 获取原图片的实际尺寸和显示尺寸
+            const originalImg = document.getElementById('replacedImage');
+            const naturalWidth = originalImg.naturalWidth;
+            const naturalHeight = originalImg.naturalHeight;
+            const displayWidth = editableCanvas.width / 2;  // 由于Canvas缩放了2倍，需要除以2
+            const displayHeight = editableCanvas.height / 2;
+            
+            // 计算缩放比例
+            const scaleX = displayWidth / naturalWidth;
+            const scaleY = displayHeight / naturalHeight;
+            
+            console.log(`🔍 绘制文字图层 - 原始尺寸: ${naturalWidth}x${naturalHeight}, 显示尺寸: ${displayWidth}x${displayHeight}`);
+            console.log(`🔍 缩放比例: scaleX=${scaleX.toFixed(3)}, scaleY=${scaleY.toFixed(3)}`);
+            
+            window.textLayers.forEach(layer => {
+                if (!layer.visible) return;
+                
+                const [x1, y1, x2, y2] = layer.box;
+                // 缩放坐标到显示尺寸
+                const scaledX1 = x1 * scaleX;
+                const scaledY1 = y1 * scaleY;
+                const scaledX2 = x2 * scaleX;
+                const scaledY2 = y2 * scaleY;
+                
+                console.log(`🔍 图层 ${layer.id}: 原始坐标 [${x1}, ${y1}, ${x2}, ${y2}] -> 显示坐标 [${scaledX1.toFixed(1)}, ${scaledY1.toFixed(1)}, ${scaledX2.toFixed(1)}, ${scaledY2.toFixed(1)}]`);
+                
+                const centerX = (scaledX1 + scaledX2) / 2;
+                const centerY = (scaledY1 + scaledY2) / 2;
+                
+                // 设置文字样式
+                const r = layer.text_color[0];
+                const g = layer.text_color[1];
+                const b = layer.text_color[2];
+                editableCtx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                
+                // 使用图层中的字体类型和大小
+                const fontFamily = layer.font_family || 'Microsoft YaHei';
+                const fontSize = layer.font_size * Math.min(scaleX, scaleY);
+                
+                // 设置字体渲染优化
+                editableCtx.font = `${fontSize}px "${fontFamily}", "SimHei", "Arial"`;
+                editableCtx.textAlign = 'center';
+                editableCtx.textBaseline = 'middle';
+                
+                // 启用字体平滑和抗锯齿
+                editableCtx.imageSmoothingEnabled = true;
+                editableCtx.imageSmoothingQuality = 'high';
+                
+                // 绘制文字（支持换行和字间距）
+                const spacing = layer.spacing || 0;
+                const text = layer.translated_text || '';
+                
+                // 检查是否包含换行符
+                if (text.includes('\n')) {
+                    // 多行文本绘制
+                    const lines = text.split('\n');
+                    const lineHeight = fontSize * 1.2; // 行高为字体大小的1.2倍
+                    const totalHeight = lines.length * lineHeight;
+                    const startY = centerY - totalHeight / 2 + lineHeight / 2;
+                    
+                    lines.forEach((line, lineIndex) => {
+                        if (line.trim() === '') return; // 跳过空行
+                        
+                        if (spacing > 0 && line.length > 1) {
+                            // 计算总宽度（包括字间距）
+                            const totalWidth = line.length * fontSize + (line.length - 1) * spacing * Math.min(scaleX, scaleY);
+                            const startX = centerX - totalWidth / 2;
+                            
+                            for (let i = 0; i < line.length; i++) {
+                                const charX = startX + i * (fontSize + spacing * Math.min(scaleX, scaleY));
+                                const lineY = startY + lineIndex * lineHeight;
+                                editableCtx.fillText(line[i], charX, lineY);
+                            }
+                        } else {
+                            // 单个字符或正常字间距的情况
+                            const lineY = startY + lineIndex * lineHeight;
+                            editableCtx.fillText(line, centerX, lineY);
+                        }
+                    });
+                } else {
+                    // 单行文本绘制
+                    if (spacing > 0 && text.length > 1) {
+                        // 计算总宽度（包括字间距）
+                        const totalWidth = text.length * fontSize + (text.length - 1) * spacing * Math.min(scaleX, scaleY);
+                        const startX = centerX - totalWidth / 2;
+                        
+                        for (let i = 0; i < text.length; i++) {
+                            const charX = startX + i * (fontSize + spacing * Math.min(scaleX, scaleY));
+                            editableCtx.fillText(text[i], charX, centerY);
+                        }
+                    } else {
+                        // 单个字符或正常字间距的情况
+                        editableCtx.fillText(text, centerX, centerY);
+                    }
+                }
+                
+                // 如果是选中的图层，绘制边框和缩放控制点
+                if (layer.id === selectedLayer) {
+                    editableCtx.strokeStyle = '#007AFF';
+                    editableCtx.lineWidth = 2;
+                    editableCtx.strokeRect(scaledX1, scaledY1, scaledX2 - scaledX1, scaledY2 - scaledY1);
+                    
+                    // 绘制缩放控制点
+                    drawResizeHandles(scaledX1, scaledY1, scaledX2, scaledY2);
+                }
+            });
+        }
+        
+        // 绘制缩放控制点 - 只显示四个角的控制点
+        function drawResizeHandles(x1, y1, x2, y2) {
+            const handleSize = 6;
+            const handles = [
+                { x: x1, y: y1, cursor: 'nw-resize', name: 'top-left' },
+                { x: x2, y: y1, cursor: 'ne-resize', name: 'top-right' },
+                { x: x2, y: y2, cursor: 'se-resize', name: 'bottom-right' },
+                { x: x1, y: y2, cursor: 'sw-resize', name: 'bottom-left' }
+            ];
+            
+            handles.forEach(handle => {
+                editableCtx.fillStyle = '#007AFF';
+                editableCtx.fillRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
+                editableCtx.strokeStyle = '#FFFFFF';
+                editableCtx.lineWidth = 1;
+                editableCtx.strokeRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
+            });
+        }
+
+        // 添加画布事件监听器（支持鼠标和触摸）
+        function addEditableCanvasEventListeners() {
+            // 鼠标事件
+            editableCanvas.addEventListener('mousedown', handleEditableCanvasMouseDown);
+            editableCanvas.addEventListener('mousemove', handleEditableCanvasMouseMove);
+            editableCanvas.addEventListener('mouseup', handleEditableCanvasMouseUp);
+            editableCanvas.addEventListener('mouseleave', handleEditableCanvasMouseUp);
+            editableCanvas.addEventListener('mousemove', handleEditableCanvasMouseHover);
+            
+            // 触摸事件
+            editableCanvas.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                handleEditableCanvasTouchStart(e);
+            }, { passive: false });
+            
+            editableCanvas.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                handleEditableCanvasTouchMove(e);
+            }, { passive: false });
+            
+            editableCanvas.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                handleEditableCanvasTouchEnd(e);
+            }, { passive: false });
+        }
+        
+        // 处理鼠标悬停，改变光标样式（支持鼠标和触摸）
+        function handleEditableCanvasMouseHover(e) {
+            if (isDragging || isResizing) return;
+            
+            const rect = editableCanvas.getBoundingClientRect();
+            let x, y;
+            
+            // 获取坐标（支持鼠标和触摸事件）
+            if (e.touches && e.touches.length > 0) {
+                // 触摸事件
+                x = (e.touches[0].clientX - rect.left) * (editableCanvas.width / rect.width);
+                y = (e.touches[0].clientY - rect.top) * (editableCanvas.height / rect.height);
+            } else {
+                // 鼠标事件
+                x = (e.clientX - rect.left) * (editableCanvas.width / rect.width);
+                y = (e.clientY - rect.top) * (editableCanvas.height / rect.height);
+            }
+            
+            // 获取缩放比例
+            const originalImg = document.getElementById('replacedImage');
+            const naturalWidth = originalImg.naturalWidth;
+            const naturalHeight = originalImg.naturalHeight;
+            const displayWidth = editableCanvas.width;
+            const displayHeight = editableCanvas.height;
+            const scaleX = displayWidth / naturalWidth;
+            const scaleY = displayHeight / naturalHeight;
+            
+            // 检查是否悬停在缩放控制点上
+            if (selectedLayer) {
+                const layer = window.textLayers.find(l => l.id === selectedLayer);
+                if (layer) {
+                    const [x1, y1, x2, y2] = layer.box;
+                    const scaledX1 = x1 * scaleX;
+                    const scaledY1 = y1 * scaleY;
+                    const scaledX2 = x2 * scaleX;
+                    const scaledY2 = y2 * scaleY;
+                    
+                    const handle = getResizeHandleAt(x, y, scaledX1, scaledY1, scaledX2, scaledY2);
+                    if (handle) {
+                                            const cursorMap = {
+                        'top-left': 'nw-resize',
+                        'top-right': 'ne-resize',
+                        'bottom-right': 'se-resize',
+                        'bottom-left': 'sw-resize'
+                    };
+                        editableCanvas.style.cursor = cursorMap[handle] || 'default';
+                        return;
+                    }
+                }
+            }
+            
+            // 检查是否悬停在图层上
+            const hoveredLayer = window.textLayers.find(layer => {
+                const [x1, y1, x2, y2] = layer.box;
+                const scaledX1 = x1 * scaleX;
+                const scaledY1 = y1 * scaleY;
+                const scaledX2 = x2 * scaleX;
+                const scaledY2 = y2 * scaleY;
+                return x >= scaledX1 && x <= scaledX2 && y >= scaledY1 && y <= scaledY2;
+            });
+            
+            if (hoveredLayer) {
+                editableCanvas.style.cursor = 'move';
+            } else {
+                editableCanvas.style.cursor = 'default';
+            }
+        }
+
+        // 处理画布鼠标按下事件（支持鼠标和触摸）
+        function handleEditableCanvasMouseDown(e) {
+            const rect = editableCanvas.getBoundingClientRect();
+            let x, y;
+            
+            // 获取坐标（支持鼠标和触摸事件）
+            if (e.touches && e.touches.length > 0) {
+                // 触摸事件
+                x = (e.touches[0].clientX - rect.left) * (editableCanvas.width / rect.width);
+                y = (e.touches[0].clientY - rect.top) * (editableCanvas.height / rect.height);
+            } else {
+                // 鼠标事件
+                x = (e.clientX - rect.left) * (editableCanvas.width / rect.width);
+                y = (e.clientY - rect.top) * (editableCanvas.height / rect.height);
+            }
+            
+            // 获取缩放比例
+            const originalImg = document.getElementById('replacedImage');
+            const naturalWidth = originalImg.naturalWidth;
+            const naturalHeight = originalImg.naturalHeight;
+            const displayWidth = editableCanvas.width;  // 使用画布的实际尺寸
+            const displayHeight = editableCanvas.height;
+            const scaleX = displayWidth / naturalWidth;
+            const scaleY = displayHeight / naturalHeight;
+            
+            // 首先检查是否点击了缩放控制点
+            if (selectedLayer) {
+                const layer = window.textLayers.find(l => l.id === selectedLayer);
+                if (layer) {
+                    const [x1, y1, x2, y2] = layer.box;
+                    const scaledX1 = x1 * scaleX;
+                    const scaledY1 = y1 * scaleY;
+                    const scaledX2 = x2 * scaleX;
+                    const scaledY2 = y2 * scaleY;
+                    
+                    const clickedHandle = getResizeHandleAt(x, y, scaledX1, scaledY1, scaledX2, scaledY2);
+                    if (clickedHandle) {
+                        isResizing = true;
+                        resizeHandle = clickedHandle;
+                        dragStart = { x, y };
+                        return;
+                    }
+                }
+            }
+            
+            // 检查是否点击了图层
+            const clickedLayer = window.textLayers.find(layer => {
+                const [x1, y1, x2, y2] = layer.box;
+                const scaledX1 = x1 * scaleX;
+                const scaledY1 = y1 * scaleY;
+                const scaledX2 = x2 * scaleX;
+                const scaledY2 = y2 * scaleY;
+                return x >= scaledX1 && x <= scaledX2 && y >= scaledY1 && y <= scaledY2;
+            });
+            
+            if (clickedLayer) {
+                // 确保最多只能选中一个文字框，自动取消其他选中
+                selectedLayer = clickedLayer.id;
+                isDragging = true;
+                isResizing = false;
+                resizeHandle = null;
+                dragStart = { x, y };
+                redrawCanvas(); // 使用redrawCanvas确保正确重绘
+            } else {
+                // 点击空白区域，自动取消选中
+                selectedLayer = null;
+                isDragging = false;
+                isResizing = false;
+                resizeHandle = null;
+                redrawCanvas();
+            }
+        }
+        
+        // 检测点击的缩放控制点 - 只检测四个角的控制点
+        function getResizeHandleAt(x, y, x1, y1, x2, y2) {
+            const handleSize = 6;
+            const handles = [
+                { x: x1, y: y1, name: 'top-left' },
+                { x: x2, y: y1, name: 'top-right' },
+                { x: x2, y: y2, name: 'bottom-right' },
+                { x: x1, y: y2, name: 'bottom-left' }
+            ];
+            
+            for (const handle of handles) {
+                if (x >= handle.x - handleSize/2 && x <= handle.x + handleSize/2 &&
+                    y >= handle.y - handleSize/2 && y <= handle.y + handleSize/2) {
+                    return handle.name;
+                }
+            }
+            return null;
+        }
+
+        // 处理画布鼠标移动事件（支持鼠标和触摸）
+        function handleEditableCanvasMouseMove(e) {
+            if (!isDragging && !isResizing) return;
+            if (!dragStart || !selectedLayer) return;
+            
+            const rect = editableCanvas.getBoundingClientRect();
+            let x, y;
+            
+            // 获取坐标（支持鼠标和触摸事件）
+            if (e.touches && e.touches.length > 0) {
+                // 触摸事件
+                x = (e.touches[0].clientX - rect.left) * (editableCanvas.width / rect.width);
+                y = (e.touches[0].clientY - rect.top) * (editableCanvas.height / rect.height);
+            } else {
+                // 鼠标事件
+                x = (e.clientX - rect.left) * (editableCanvas.width / rect.width);
+                y = (e.clientY - rect.top) * (editableCanvas.height / rect.height);
+            }
+            
+            const deltaX = x - dragStart.x;
+            const deltaY = y - dragStart.y;
+            
+            // 获取缩放比例
+            const originalImg = document.getElementById('replacedImage');
+            const naturalWidth = originalImg.naturalWidth;
+            const naturalHeight = originalImg.naturalHeight;
+            const displayWidth = editableCanvas.width;  // 使用画布的实际尺寸
+            const displayHeight = editableCanvas.height;
+            const scaleX = displayWidth / naturalWidth;
+            const scaleY = displayHeight / naturalHeight;
+            
+            if (isResizing && resizeHandle) {
+                // 处理缩放 - 只允许斜角缩放，边框紧贴文字
+                window.textLayers = window.textLayers.map(layer => {
+                    if (layer.id !== selectedLayer) return layer;
+                    
+                    const [x1, y1, x2, y2] = layer.box;
+                    let newX1 = x1, newY1 = y1, newX2 = x2, newY2 = y2;
+                    
+                    const deltaX_scaled = deltaX / scaleX;
+                    const deltaY_scaled = deltaY / scaleY;
+                    
+                    // 只处理四个角的缩放
+                    switch (resizeHandle) {
+                        case 'top-left':
+                            newX1 = x1 + deltaX_scaled;
+                            newY1 = y1 + deltaY_scaled;
+                            break;
+                        case 'top-right':
+                            newX2 = x2 + deltaX_scaled;
+                            newY1 = y1 + deltaY_scaled;
+                            break;
+                        case 'bottom-right':
+                            newX2 = x2 + deltaX_scaled;
+                            newY2 = y2 + deltaY_scaled;
+                            break;
+                        case 'bottom-left':
+                            newX1 = x1 + deltaX_scaled;
+                            newY2 = y2 + deltaY_scaled;
+                            break;
+                    }
+                    
+                    // 确保最小尺寸
+                    const minWidth = 20 / scaleX;
+                    const minHeight = 20 / scaleY;
+                    if (newX2 - newX1 < minWidth) {
+                        if (resizeHandle.includes('left')) newX1 = newX2 - minWidth;
+                        else newX2 = newX1 + minWidth;
+                    }
+                    if (newY2 - newY1 < minHeight) {
+                        if (resizeHandle.includes('top')) newY1 = newY2 - minHeight;
+                        else newY2 = newY1 + minHeight;
+                    }
+                    
+                    // 根据缩放比例调整字体大小 - 保持文字与边框的紧密关系
+                    const originalWidth = x2 - x1;
+                    const originalHeight = y2 - y1;
+                    const newWidth = newX2 - newX1;
+                    const newHeight = newY2 - newY1;
+                    
+                    // 计算缩放比例（取宽高的平均值）
+                    const scaleRatio = Math.sqrt((newWidth * newHeight) / (originalWidth * originalHeight));
+                    const newFontSize = Math.max(8, Math.min(100, layer.font_size * scaleRatio));
+                    
+                    return { 
+                        ...layer, 
+                        box: [newX1, newY1, newX2, newY2],
+                        font_size: newFontSize
+                    };
+                });
+            } else if (isDragging) {
+                // 处理拖拽
+                window.textLayers = window.textLayers.map(layer => 
+                    layer.id === selectedLayer 
+                        ? { ...layer, box: [layer.box[0] + deltaX / scaleX, layer.box[1] + deltaY / scaleY, layer.box[2] + deltaX / scaleX, layer.box[3] + deltaY / scaleY] }
+                        : layer
+                );
+            }
+            
+            dragStart = { x, y };
+            
+            // 重绘画布
+            redrawCanvas();
+        }
+
+        // 处理画布鼠标释放事件
+        function handleEditableCanvasMouseUp() {
+            isDragging = false;
+            isResizing = false;
+            resizeHandle = null;
+            dragStart = null;
+        }
+
+        // 更新图层面板
+        function updateLayersPanel() {
+            const layersContent = document.getElementById('layersContent');
+            
+            if (!window.textLayers || window.textLayers.length === 0) {
+                layersContent.innerHTML = '<p style="color: #666; text-align: center;">暂无文字图层</p>';
+                return;
+            }
+            
+            layersContent.innerHTML = window.textLayers.map(layer => `
+                <div style="border: 2px solid ${layer.id === selectedLayer ? '#007AFF' : '#ddd'}; padding: 10px; margin-bottom: 10px; border-radius: 5px; background: ${layer.id === selectedLayer ? '#f0f8ff' : 'white'}; cursor: pointer;" 
+                     onclick="selectLayerFromSidebar('${layer.id}')">
+                    <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                        <input type="checkbox" ${layer.visible ? 'checked' : ''} 
+                               onchange="toggleLayerVisibility('${layer.id}', this.checked)" 
+                               onclick="event.stopPropagation()" 
+                               style="margin-right: 5px;">
+                        <span style="font-size: 12px; color: #666;">${layer.original_text}</span>
+                    </div>
+                    <textarea rows="3" 
+                              onchange="updateLayerText('${layer.id}', this.value)" 
+                              oninput="updateLayerText('${layer.id}', this.value)"
+                              onclick="event.stopPropagation()"
+                              onfocus="event.stopPropagation()"
+                              style="width: 100%; padding: 5px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 3px; resize: vertical; font-family: inherit;"
+                              placeholder="输入翻译文本，支持换行">${layer.translated_text}</textarea>
+                    <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 5px;">
+                        <input type="color" value="#${layer.text_color[0].toString(16).padStart(2, '0')}${layer.text_color[1].toString(16).padStart(2, '0')}${layer.text_color[2].toString(16).padStart(2, '0')}" 
+                               onchange="updateLayerColor('${layer.id}', this.value)" 
+                               onclick="event.stopPropagation()"
+                               style="width: 30px; height: 25px; border: none;">
+                        <input type="number" value="${layer.font_size}" min="8" max="100" 
+                               onchange="updateLayerFontSize('${layer.id}', this.value)" 
+                               onclick="event.stopPropagation()"
+                               onfocus="event.stopPropagation()"
+                               style="width: 60px; padding: 3px; border: 1px solid #ddd; border-radius: 3px;">
+                        <input type="number" value="${layer.spacing || 0}" min="0" max="50" 
+                               onchange="updateLayerSpacing('${layer.id}', this.value)" 
+                               onclick="event.stopPropagation()"
+                               onfocus="event.stopPropagation()"
+                               style="width: 50px; padding: 3px; border: 1px solid #ddd; border-radius: 3px;"
+                               title="字间距">
+                    </div>
+                    <select onchange="updateLayerFontFamily('${layer.id}', this.value)" 
+                            onclick="event.stopPropagation()"
+                            onfocus="event.stopPropagation()"
+                            style="width: 100%; padding: 3px; border: 1px solid #ddd; border-radius: 3px; font-size: 12px;">
+                        <option value="Microsoft YaHei" ${(layer.font_family || 'Microsoft YaHei') === 'Microsoft YaHei' ? 'selected' : ''}>微软雅黑</option>
+                        <option value="SimHei" ${(layer.font_family || 'Microsoft YaHei') === 'SimHei' ? 'selected' : ''}>黑体</option>
+                        <option value="Arial" ${(layer.font_family || 'Microsoft YaHei') === 'Arial' ? 'selected' : ''}>Arial</option>
+                    </select>
+                </div>
+            `).join('');
+        }
+
+        // 切换图层可见性
+        function toggleLayerVisibility(layerId, visible) {
+            window.textLayers = window.textLayers.map(layer => 
+                layer.id === layerId ? { ...layer, visible } : layer
+            );
+            redrawCanvas();
+        }
+
+        // 更新图层文字（支持换行）
+        function updateLayerText(layerId, text) {
+            console.log('🔍 更新图层文字:', layerId, text);
+            
+            window.textLayers = window.textLayers.map(layer => {
+                if (layer.id !== layerId) return layer;
+                
+                // 更新文字内容
+                const updatedLayer = { ...layer, translated_text: text };
+                
+                // 如果文字包含换行符，重新计算边框大小
+                if (text.includes('\n')) {
+                    console.log('  检测到换行符，重新计算边框');
+                    // 这里可以调用后端的边框计算函数，或者在前端简单处理
+                    // 暂时保持原有边框，让用户手动调整
+                }
+                
+                return updatedLayer;
+            });
+            
+            redrawCanvas();
+        }
+
+        // 更新图层颜色
+        function updateLayerColor(layerId, color) {
+            console.log('🔍 更新图层颜色:', layerId, color);
+            
+            // 将十六进制颜色转换为RGB数组
+            const hex = color.replace('#', '');
+            const r = parseInt(hex.substr(0, 2), 16);
+            const g = parseInt(hex.substr(2, 2), 16);
+            const b = parseInt(hex.substr(4, 2), 16);
+            
+            console.log('  转换后的RGB颜色:', [r, g, b]);
+            
+            window.textLayers = window.textLayers.map(layer => 
+                layer.id === layerId ? { ...layer, text_color: [r, g, b] } : layer
+            );
+            
+            console.log('  文字图层更新完成，开始重绘画布');
+            redrawCanvas();
+        }
+
+        // 更新图层字体大小 - 同步更新边框大小
+        function updateLayerFontSize(layerId, size) {
+            const fontSize = parseInt(size) || 20;
+            window.textLayers = window.textLayers.map(layer => {
+                if (layer.id !== layerId) return layer;
+                
+                // 计算新的边框大小，保持文字与边框的紧密关系
+                const [x1, y1, x2, y2] = layer.box;
+                const currentWidth = x2 - x1;
+                const currentHeight = y2 - y1;
+                
+                // 根据字体大小变化计算新的边框尺寸
+                const fontRatio = fontSize / layer.font_size;
+                const newWidth = currentWidth * fontRatio;
+                const newHeight = currentHeight * fontRatio;
+                
+                // 保持中心点不变
+                const centerX = (x1 + x2) / 2;
+                const centerY = (y1 + y2) / 2;
+                const newX1 = centerX - newWidth / 2;
+                const newY1 = centerY - newHeight / 2;
+                const newX2 = centerX + newWidth / 2;
+                const newY2 = centerY + newHeight / 2;
+                
+                return { 
+                    ...layer, 
+                    font_size: fontSize,
+                    box: [newX1, newY1, newX2, newY2]
+                };
+            });
+            redrawCanvas();
+        }
+
+        // 更新图层字间距
+        function updateLayerSpacing(layerId, spacing) {
+            const spacingValue = parseInt(spacing) || 0;
+            window.textLayers = window.textLayers.map(layer => 
+                layer.id === layerId ? { ...layer, spacing: spacingValue } : layer
+            );
+            redrawCanvas();
+        }
+
+        // 从侧栏选择图层
+        function selectLayerFromSidebar(layerId) {
+            console.log('🔍 从侧栏选择图层:', layerId);
+            
+            // 如果点击的是当前已选中的图层，不做任何操作
+            if (selectedLayer === layerId) {
+                console.log('  图层已经选中，跳过重复选择');
+                return;
+            }
+            
+            // 更新选中的图层
+            selectedLayer = layerId;
+            
+            // 重绘面板以更新选中状态
+            updateLayersPanel();
+            
+            // 重绘画布以显示选中边框
+            redrawCanvas();
+        }
+
+        // 更新图层字体类型
+        function updateLayerFontFamily(layerId, fontFamily) {
+            window.textLayers = window.textLayers.map(layer => 
+                layer.id === layerId ? { ...layer, font_family: fontFamily } : layer
+            );
+            redrawCanvas();
+        }
+
+        // 重绘画布函数
+        function redrawCanvas() {
+            if (!editableCtx) return;
+            
+            console.log('🔍 重绘画布开始');
+            console.log('  Canvas尺寸:', editableCanvas.width, 'x', editableCanvas.height);
+            console.log('  显示尺寸:', editableCanvas.width / 2, 'x', editableCanvas.height / 2);
+            
+            const inpaintedImg = new Image();
+            inpaintedImg.onload = function() {
+                console.log('  背景图片加载完成，尺寸:', inpaintedImg.width, 'x', inpaintedImg.height);
+                
+                // 清除画布
+                editableCtx.clearRect(0, 0, editableCanvas.width, editableCanvas.height);
+                
+                // 绘制背景图片，考虑Canvas的2倍缩放
+                const displayWidth = editableCanvas.width / 2;
+                const displayHeight = editableCanvas.height / 2;
+                editableCtx.drawImage(inpaintedImg, 0, 0, displayWidth, displayHeight);
+                
+                console.log('  背景图片绘制完成');
+                
+                // 绘制文字图层
+                drawTextLayersOnCanvas();
+            };
+            inpaintedImg.onerror = function() {
+                console.error('❌ 背景图片加载失败');
+            };
+            // 优先使用processedImage，如果不存在则使用replacedImage
+            const imageSrc = window.processedImage || document.getElementById('replacedImage').src;
+            console.log('  使用图片源:', imageSrc ? '存在' : '不存在');
+            inpaintedImg.src = imageSrc;
+        }
+
+        // 生成最终结果
+        async function generateFinalResult() {
+            if (!window.processedImage || !window.textLayers || window.textLayers.length === 0) {
+                showStatus('没有可生成的图片', 'error');
+                return;
+            }
+
+            try {
+                showStatus('正在生成最终结果...', 'loading');
+                
+                // 保存当前编辑状态
+                window.currentTextLayers = JSON.parse(JSON.stringify(window.textLayers));
+                
+                // 获取原始图片尺寸，用于坐标转换
+                const originalImg = document.getElementById('replacedImage');
+                const naturalWidth = originalImg.naturalWidth;
+                const naturalHeight = originalImg.naturalHeight;
+                
+                // 使用当前画布上的文字图层状态（包括位置、大小、颜色、字体大小等）
+                const currentLayers = window.currentTextLayers.map(layer => {
+                    // 确保坐标是相对于原始图片尺寸的
+                    const [x1, y1, x2, y2] = layer.box;
+                    
+                    // 如果坐标已经是原始尺寸，直接使用；否则需要转换
+                    // 这里假设layer.box已经是原始图片的坐标
+                    const adjustedLayer = {
+                        ...layer,
+                        box: [x1, y1, x2, y2], // 使用原始坐标
+                        text_color: layer.text_color,
+                        font_size: layer.font_size,
+                        translated_text: layer.translated_text,
+                        visible: layer.visible,
+                        font_family: layer.font_family || 'Microsoft YaHei',
+                        spacing: layer.spacing || 0
+                    };
+                    
+                    console.log(`🔍 图层 ${layer.id}: 原始坐标 [${x1}, ${y1}, ${x2}, ${y2}]`);
+                    return adjustedLayer;
+                });
+                
+                const response = await fetch('/api/ocr/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image: window.processedImage,
+                        text_layers: currentLayers
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 显示最终结果
+                    document.getElementById('finalResultImage').src = data.final_image;
+                    document.getElementById('finalResultContainer').style.display = 'block';
+                    
+                    // 隐藏编辑界面
+                    document.getElementById('editableCanvas').style.display = 'none';
+                    document.getElementById('textLayersPanel').style.display = 'none';
+                    document.getElementById('replacedImage').style.display = 'block';
+                    
+                    // 重置编辑状态
+                    selectedLayer = null;
+                    isDragging = false;
+                    isResizing = false;
+                    resizeHandle = null;
+                    dragStart = null;
+                    
+                    showStatus('最终结果生成成功！', 'success');
+                } else {
+                    showStatus(`生成失败: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('生成最终结果错误:', error);
+                showStatus(`生成最终结果错误: ${error.message}`, 'error');
+            }
+        }
+
+
+
+        // 下载最终结果
+        function downloadFinalResult() {
+            const img = document.getElementById('finalResultImage');
+            if (!img.src) {
+                showStatus('没有可下载的图片', 'error');
+                return;
+            }
+            
+            const link = document.createElement('a');
+            link.href = img.src;
+            link.download = 'final_result.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showStatus('图片下载完成！', 'success');
+        }
+
+        // 触摸事件处理函数
+        function handleEditableCanvasTouchStart(e) {
+            if (e.touches && e.touches.length > 0) {
+                const touch = e.touches[0];
+                const rect = editableCanvas.getBoundingClientRect();
+                const x = (touch.clientX - rect.left) * (editableCanvas.width / rect.width);
+                const y = (touch.clientY - rect.top) * (editableCanvas.height / rect.height);
+                
+                // 获取缩放比例
+                const originalImg = document.getElementById('replacedImage');
+                const naturalWidth = originalImg.naturalWidth;
+                const naturalHeight = originalImg.naturalHeight;
+                const displayWidth = editableCanvas.width;
+                const displayHeight = editableCanvas.height;
+                const scaleX = displayWidth / naturalWidth;
+                const scaleY = displayHeight / naturalHeight;
+                
+                // 首先检查是否点击了缩放控制点
+                if (selectedLayer) {
+                    const layer = window.textLayers.find(l => l.id === selectedLayer);
+                    if (layer) {
+                        const [x1, y1, x2, y2] = layer.box;
+                        const scaledX1 = x1 * scaleX;
+                        const scaledY1 = y1 * scaleY;
+                        const scaledX2 = x2 * scaleX;
+                        const scaledY2 = y2 * scaleY;
+                        
+                        const clickedHandle = getResizeHandleAt(x, y, scaledX1, scaledY1, scaledX2, scaledY2);
+                        if (clickedHandle) {
+                            isResizing = true;
+                            resizeHandle = clickedHandle;
+                            dragStart = { x, y };
+                            return;
+                        }
+                    }
+                }
+                
+                // 检查是否点击了图层
+                const clickedLayer = window.textLayers.find(layer => {
+                    const [x1, y1, x2, y2] = layer.box;
+                    const scaledX1 = x1 * scaleX;
+                    const scaledY1 = y1 * scaleY;
+                    const scaledX2 = x2 * scaleX;
+                    const scaledY2 = y2 * scaleY;
+                    return x >= scaledX1 && x <= scaledX2 && y >= scaledY1 && y <= scaledY2;
+                });
+                
+                if (clickedLayer) {
+                    selectedLayer = clickedLayer.id;
+                    isDragging = true;
+                    isResizing = false;
+                    resizeHandle = null;
+                    dragStart = { x, y };
+                    redrawCanvas();
+                } else {
+                    selectedLayer = null;
+                    isDragging = false;
+                    isResizing = false;
+                    resizeHandle = null;
+                    redrawCanvas();
+                }
+            }
+        }
+
+        function handleEditableCanvasTouchMove(e) {
+            if (!isDragging && !isResizing) return;
+            if (!dragStart || !selectedLayer) return;
+            
+            if (e.touches && e.touches.length > 0) {
+                const touch = e.touches[0];
+                const rect = editableCanvas.getBoundingClientRect();
+                const x = (touch.clientX - rect.left) * (editableCanvas.width / rect.width);
+                const y = (touch.clientY - rect.top) * (editableCanvas.height / rect.height);
+                
+                const deltaX = x - dragStart.x;
+                const deltaY = y - dragStart.y;
+                
+                // 获取缩放比例
+                const originalImg = document.getElementById('replacedImage');
+                const naturalWidth = originalImg.naturalWidth;
+                const naturalHeight = originalImg.naturalHeight;
+                const displayWidth = editableCanvas.width;
+                const displayHeight = editableCanvas.height;
+                const scaleX = displayWidth / naturalWidth;
+                const scaleY = displayHeight / naturalHeight;
+                
+                if (isResizing && resizeHandle) {
+                    const layer = window.textLayers.find(l => l.id === selectedLayer);
+                    if (layer) {
+                        const [x1, y1, x2, y2] = layer.box;
+                        const scaledX1 = x1 * scaleX;
+                        const scaledY1 = y1 * scaleY;
+                        const scaledX2 = x2 * scaleX;
+                        const scaledY2 = y2 * scaleY;
+                        
+                        let newX1 = scaledX1;
+                        let newY1 = scaledY1;
+                        let newX2 = scaledX2;
+                        let newY2 = scaledY2;
+                        
+                        switch (resizeHandle) {
+                            case 'top-left':
+                                newX1 = scaledX1 + deltaX;
+                                newY1 = scaledY1 + deltaY;
+                                break;
+                            case 'top-right':
+                                newX2 = scaledX2 + deltaX;
+                                newY1 = scaledY1 + deltaY;
+                                break;
+                            case 'bottom-right':
+                                newX2 = scaledX2 + deltaX;
+                                newY2 = scaledY2 + deltaY;
+                                break;
+                            case 'bottom-left':
+                                newX1 = scaledX1 + deltaX;
+                                newY2 = scaledY2 + deltaY;
+                                break;
+                        }
+                        
+                        // 转换回原始坐标
+                        const originalX1 = Math.round(newX1 / scaleX);
+                        const originalY1 = Math.round(newY1 / scaleY);
+                        const originalX2 = Math.round(newX2 / scaleX);
+                        const originalY2 = Math.round(newY2 / scaleY);
+                        
+                        layer.box = [originalX1, originalY1, originalX2, originalY2];
+                        redrawCanvas();
+                    }
+                } else if (isDragging) {
+                    const layer = window.textLayers.find(l => l.id === selectedLayer);
+                    if (layer) {
+                        const [x1, y1, x2, y2] = layer.box;
+                        const scaledX1 = x1 * scaleX;
+                        const scaledY1 = y1 * scaleY;
+                        const scaledX2 = x2 * scaleX;
+                        const scaledY2 = y2 * scaleY;
+                        
+                        const newX1 = scaledX1 + deltaX;
+                        const newY1 = scaledY1 + deltaY;
+                        const newX2 = scaledX2 + deltaX;
+                        const newY2 = scaledY2 + deltaY;
+                        
+                        // 转换回原始坐标
+                        const originalX1 = Math.round(newX1 / scaleX);
+                        const originalY1 = Math.round(newY1 / scaleY);
+                        const originalX2 = Math.round(newX2 / scaleX);
+                        const originalY2 = Math.round(newY2 / scaleY);
+                        
+                        layer.box = [originalX1, originalY1, originalX2, originalY2];
+                        redrawCanvas();
+                    }
+                }
+                
+                dragStart = { x, y };
+            }
+        }
+
+        function handleEditableCanvasTouchEnd(e) {
+            isDragging = false;
+            isResizing = false;
+            resizeHandle = null;
+            dragStart = null;
+        }
+    </script>
+</body>
+</html> 

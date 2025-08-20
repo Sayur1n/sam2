@@ -23,6 +23,7 @@ from inference.data_types import PropagateDataResponse, PropagateInVideoRequest
 from inference.multipart import MultipartResponseBuilder
 from inference.predictor import InferenceAPI
 from strawberry.flask.views import GraphQLView
+from ocr_api import create_ocr_routes
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,9 @@ videos = preload_data()
 set_videos(videos)
 
 inference_api = InferenceAPI()
+
+# 注册OCR路由
+create_ocr_routes(app)
 
 
 @app.route("/healthy")
